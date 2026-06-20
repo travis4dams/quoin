@@ -1,0 +1,18 @@
+{
+  "name": "quoin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QUOIN — a five-letter guessing game, wrapped as a native iOS app with Capacitor.",
+  "scripts": {
+    "ios:add": "cap add ios",
+    "ios:sync": "cap sync",
+    "ios:open": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
+  }
+}
