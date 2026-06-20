@@ -184,14 +184,16 @@
     color:var(--paper);
     background:#574f44;
     border:none;border-radius:5px;
-    height:54px;flex:1;min-width:0;
+    height:clamp(46px,7.4vh,56px);flex:1;min-width:0;
     box-shadow:0 2px 0 rgba(0,0,0,.4);
     cursor:pointer;
     transition:transform .04s ease, background .15s ease, box-shadow .04s ease;
     -webkit-tap-highlight-color:transparent;
   }
   .key:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.4);}
-  .key.wide{flex:1.5;font-size:11px;letter-spacing:.05em;}
+  .key.wide{font-size:18px;}
+  .key.enter{font-size:13px;letter-spacing:.14em;background:#615847;}
+  .kspacer{min-width:0;pointer-events:none;}
   .key:focus-visible{outline:3px solid var(--present);outline-offset:2px;}
   .key.correct{background:var(--correct);color:#13210c;}
   .key.present{background:var(--present);color:#241c06;}
@@ -217,6 +219,7 @@
   button.txt:active{transform:translateY(2px);box-shadow:0 0 0;}
   button.txt.ghost{background:transparent;color:var(--muted);box-shadow:none;border:1px solid var(--line);}
   button.txt.ghost:hover{color:var(--paper);}
+  button.txt.danger{color:var(--present);border-color:var(--present);}
   button.txt:focus-visible{outline:3px solid var(--present);outline-offset:2px;}
 
   /* ---- help sheet ---- */
@@ -267,6 +270,7 @@
     <span class="tally" id="tally">won <b>0</b> / <b>0</b> this session</span>
     <div class="actions">
       <button class="txt ghost" id="helpBtn" aria-haspopup="dialog">how to play</button>
+      <button class="txt ghost" id="giveBtn" hidden>give up</button>
       <button class="txt" id="newBtn">new word</button>
     </div>
   </footer>
@@ -289,6 +293,7 @@
       <div class="ex" aria-hidden="true">
         <div class="tile">c</div><div class="tile">h</div><div class="tile absent">a</div><div class="tile">s</div><div class="tile">e</div></div>
       <p class="ex-note"><b>A</b> isn't in the word at all.</p>
+      <p class="ex-note">Stuck? Tap <b>give up</b> to reveal the word and end the round.</p>
       <button class="txt close" id="closeHelp">got it</button>
     </div>
   </div>
@@ -308,8 +313,9 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const ROWS = 6, COLS = 5;
 const KEYS = [
   ['q','w','e','r','t','y','u','i','o','p'],
-  ['a','s','d','f','g','h','j','k','l'],
-  ['enter','z','x','c','v','b','n','m','back']
+  [{sp:0.5},'a','s','d','f','g','h','j','k','l',{sp:0.5}],
+  [{sp:0.5},'z','x','c','v','b','n','m',{sp:1},{key:'back',w:1.5}],
+  [{key:'enter',w:1}]
 ];
 
 let answer = '';
@@ -318,6 +324,7 @@ let guess = '';         // current typed letters
 let locked = false;     // input disabled during reveal
 let over = false;       // game finished
 let played = 0, won = 0;
+let givePending = false, giveTimer = null;   // give-up confirm state
 const keyState = {};    // letter -> status
 const RANK = {absent:0, present:1, correct:2};
 
@@ -339,10 +346,17 @@ function buildKeyboard(){
   kbEl.innerHTML='';
   for(const kr of KEYS){
     const rEl=document.createElement('div'); rEl.className='krow';
-    for(const k of kr){
+    for(const item of kr){
+      if(item && typeof item==='object' && 'sp' in item){
+        const s=document.createElement('span');
+        s.className='kspacer'; s.style.flex=item.sp; s.setAttribute('aria-hidden','true');
+        rEl.appendChild(s); continue;
+      }
+      const k = (item && typeof item==='object') ? item.key : item;
+      const w = (item && typeof item==='object') ? item.w : 1;
       const b=document.createElement('button');
-      b.className='key'+((k==='enter'||k==='back')?' wide':'');
-      b.dataset.key=k;
+      b.className='key'+((k==='enter'||k==='back')?' wide':'')+(k==='enter'?' enter':'');
+      b.dataset.key=k; b.style.flex=w;
       b.textContent = k==='back' ? '⌫' : k==='enter' ? 'enter' : k;
       b.setAttribute('aria-label', k==='back'?'Backspace':k==='enter'?'Enter':k);
       b.addEventListener('click', ()=>handleKey(k));
@@ -390,6 +404,7 @@ function updateKey(letter,status){
 /* ---------- input ---------- */
 function handleKey(k){
   if(over || locked) return;
+  if(givePending) resetGive();
   if(k==='enter') return submit();
   if(k==='back'){
     if(guess.length>0){
@@ -442,7 +457,7 @@ function submit(){
 function finishRow(r, g, result){
   guess='';
   if(g===answer){
-    over=true; played++; won++; updateTally();
+    over=true; played++; won++; updateTally(); showGive(false);
     if(!reduceMotion){
       result.forEach((_,i)=> setTimeout(()=>tileAt(r,i).classList.add('win'), i*90));
     }
@@ -452,7 +467,7 @@ function finishRow(r, g, result){
   }
   row++;
   if(row>=ROWS){
-    over=true; played++; updateTally();
+    over=true; played++; updateTally(); showGive(false);
     flash(`The word was <span class="answer">${answer}</span>`, 0, true);
   }
   locked=false;
@@ -467,14 +482,49 @@ function updateTally(){
   tallyEl.innerHTML = `won <b>${won}</b> / <b>${played}</b> this session`;
 }
 
+/* ---------- no-repeat memory ----------
+   Remember every answer shown (persisted in localStorage) and never pick it
+   again until all 2,315 have been used; then start a fresh cycle, skipping the
+   most recent word so it can't immediately recur. Falls back to in-memory only
+   if localStorage is unavailable. */
+const SEEN_KEY='quoin.seen', LAST_KEY='quoin.last';
+let memSeen=null, memLast=null;
+function loadSeen(){
+  try{ const r=localStorage.getItem(SEEN_KEY); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
+  return memSeen ? memSeen.slice() : [];
+}
+function saveSeen(arr,last){
+  memSeen=arr.slice(); memLast=last;
+  try{ localStorage.setItem(SEEN_KEY, JSON.stringify(arr)); localStorage.setItem(LAST_KEY, last); }catch(e){}
+}
+function getLast(){
+  try{ const r=localStorage.getItem(LAST_KEY); if(r) return r; }catch(e){}
+  return memLast;
+}
+function pickAnswer(){
+  let seen=loadSeen();
+  const seenSet=new Set(seen);
+  let pool=ANSWERS.filter(w=>!seenSet.has(w));
+  if(pool.length===0){            // seen them all — fresh cycle, skip the most recent
+    const last=getLast();
+    seen=[];
+    pool=ANSWERS.filter(w=>w!==last);
+  }
+  const w=pool[Math.floor(Math.random()*pool.length)];
+  seen.push(w);
+  saveSeen(seen,w);
+  return w;
+}
+
 /* ---------- game lifecycle ---------- */
 function newGame(){
-  answer = ANSWERS[Math.floor(Math.random()*ANSWERS.length)];
+  answer = pickAnswer();
   row=0; guess=''; locked=false; over=false;
   for(const k in keyState) delete keyState[k];
   buildBoard();
   kbEl.querySelectorAll('.key').forEach(b=>b.classList.remove('correct','present','absent'));
   msgEl.classList.remove('show'); msgEl.textContent='';
+  showGive(true);
 }
 
 /* ---------- events ---------- */
@@ -490,6 +540,33 @@ const help=document.getElementById('help');
 document.getElementById('helpBtn').addEventListener('click',()=>help.classList.add('open'));
 document.getElementById('closeHelp').addEventListener('click',()=>help.classList.remove('open'));
 help.addEventListener('click',(e)=>{ if(e.target===help) help.classList.remove('open'); });
+
+/* ---------- give up ---------- */
+const giveBtn=document.getElementById('giveBtn');
+function resetGive(){
+  givePending=false;
+  if(giveTimer){ clearTimeout(giveTimer); giveTimer=null; }
+  giveBtn.classList.remove('danger');
+  giveBtn.textContent='give up';
+}
+function showGive(show){
+  giveBtn.hidden=!show;
+  resetGive();
+}
+giveBtn.addEventListener('click',()=>{
+  if(over) return;
+  if(!givePending){                       // first tap — ask to confirm
+    givePending=true;
+    giveBtn.classList.add('danger');
+    giveBtn.textContent='reveal word?';
+    giveTimer=setTimeout(resetGive, 3000);
+    return;
+  }
+  resetGive();                            // second tap — reveal and end
+  over=true; locked=false; played++; updateTally();
+  giveBtn.hidden=true;
+  flash(`The word was <span class="answer">${answer}</span>`, 0, true);
+});
 
 /* ---------- start ---------- */
 buildKeyboard();
