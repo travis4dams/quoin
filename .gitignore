@@ -5,3 +5,6 @@ ios/
 # local Claude/tooling state — not part of the app
 .remember/
 .omc/
+
+# regenerable screenshot artifacts (run: node tools/shot.mjs)
+screenshots/
