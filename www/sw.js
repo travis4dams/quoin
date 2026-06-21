@@ -1,6 +1,6 @@
 /* QUOIN service worker — precache the whole game so it runs with no signal.
    Bump CACHE when you change any of the files below to force an update. */
-const CACHE = 'quoin-v3';
+const CACHE = 'quoin-v4';
 const ASSETS = [
   './',
   './index.html',
