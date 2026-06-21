@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>QUOIN — a five-letter guessing game</title>
-<meta name="theme-color" content="#211f1b">
+<meta name="theme-color" content="#d8c9a4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="QUOIN">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -22,16 +22,19 @@
 
 <style>
   :root{
-    --ink:#211f1b;          /* warm near-black ground */
-    --ink2:#2a2722;         /* raised panel */
-    --line:#46413a;         /* empty tile rule */
-    --paper:#efe9dd;        /* type-block letters / text */
-    --muted:#9b9384;        /* captions */
-    --correct:#6a994e;      /* green ink — right spot */
-    --present:#caa23e;      /* ochre — wrong spot */
-    --absent:#3a352f;       /* sunken — not in word */
-    --absent-key:#33302b;
-    --shadow: 0 1px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+    --bg:#d8c9a4;           /* aged parchment ground */
+    --bg2:#e4d7b6;          /* raised surface (filled tile) */
+    --ink:#2a2417;          /* ink text + dark surfaces (enter bar) */
+    --ink2:#e8dcbd;         /* raised card (help sheet) */
+    --line:#bfae87;         /* empty tile / divider rule */
+    --paper:#f4eedd;        /* light text on dark/coloured surfaces */
+    --muted:#7e745c;        /* captions */
+    --key:#e3d6b4;          /* keycap face */
+    --correct:#5f8a3f;      /* green ink — right spot */
+    --present:#b98f25;      /* ochre — wrong spot */
+    --absent:#ab9c78;       /* struck — not in word */
+    --absent-key:#bcad88;   /* spent keycap */
+    --shadow: 0 1px 0 rgba(255,255,255,.45), inset 0 1px 0 rgba(255,255,255,.25);
     --serif:'Fraunces', Georgia, 'Times New Roman', serif;
     --mono:'Space Mono', 'Courier New', ui-monospace, monospace;
   }
@@ -40,8 +43,8 @@
   body{
     margin:0;
     background:
-      radial-gradient(120% 80% at 50% -10%, #2b2823 0%, var(--ink) 55%) fixed;
-    color:var(--paper);
+      radial-gradient(120% 80% at 50% -10%, #e2d4af 0%, var(--bg) 60%) fixed;
+    color:var(--ink);
     font-family:var(--mono);
     display:flex;
     flex-direction:column;
@@ -60,7 +63,7 @@
   header{
     text-align:center;
     padding:max(10px, env(safe-area-inset-top)) 16px 5px;
-    border-bottom:1px solid rgba(255,255,255,.06);
+    border-bottom:1px solid rgba(0,0,0,.08);
     max-width:520px;
     margin:0 auto;
   }
@@ -72,9 +75,9 @@
     margin:0;
     line-height:1;
     text-indent:.16em;            /* optically center the tracked caps */
-    background:linear-gradient(180deg,#f7f2e8,#cfc7b6);
+    background:linear-gradient(180deg,#3a3328,#241f17);
     -webkit-background-clip:text;background-clip:text;color:transparent;
-    text-shadow:0 2px 0 rgba(0,0,0,.25);
+    text-shadow:0 1px 0 rgba(255,255,255,.55);
   }
   .gloss{
     font-family:var(--serif);
@@ -112,7 +115,7 @@
     font-family:var(--mono);font-weight:700;
     font-size:calc(var(--tile)*.46);
     text-transform:uppercase;
-    color:var(--paper);
+    color:var(--ink);
     background:transparent;
     border:1.5px solid var(--line);
     border-radius:4px;
@@ -121,8 +124,8 @@
     transition:border-color .08s ease, transform .04s ease;
   }
   .tile.filled{
-    border-color:#6f685d;
-    background:#2f2b25;
+    border-color:#b2a37e;
+    background:var(--bg2);
     animation:pop .12s ease;
   }
   @keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
@@ -130,7 +133,7 @@
   /* result colours (also used as flip end-state via classes) */
   .tile.correct{background:var(--correct);border-color:var(--correct);color:#13210c;}
   .tile.present{background:var(--present);border-color:var(--present);color:#241c06;}
-  .tile.absent {background:var(--absent); border-color:var(--absent); color:#cdc6b8;}
+  .tile.absent {background:var(--absent); border-color:var(--absent); color:#46413a;}
 
   /* flip reveal — color set to result at midpoint via JS-applied class */
   .tile.flip{animation:flip .55s ease forwards;}
@@ -161,7 +164,7 @@
   #msg{
     min-height:30px;
     font-family:var(--serif);font-style:italic;font-weight:600;
-    font-size:15px;color:var(--paper);
+    font-size:15px;color:var(--ink);
     background:rgba(0,0,0,0);
     text-align:center;
     transition:opacity .25s ease;
@@ -182,23 +185,23 @@
   .key{
     font-family:var(--mono);font-weight:700;font-size:14px;
     text-transform:uppercase;
-    color:var(--paper);
-    background:#574f44;
+    color:var(--ink);
+    background:var(--key);
     border:none;border-radius:5px;
     height:var(--kh);flex:1;min-width:0;
-    box-shadow:0 2px 0 rgba(0,0,0,.4);
+    box-shadow:0 2px 0 rgba(0,0,0,.18);
     cursor:pointer;
     transition:transform .04s ease, background .15s ease, box-shadow .04s ease;
     -webkit-tap-highlight-color:transparent;
   }
   .key:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.4);}
   .key.wide{font-size:18px;}
-  .key.enter{height:calc(var(--kh) - 8px);font-size:13px;letter-spacing:.14em;background:#615847;}
+  .key.enter{height:calc(var(--kh) - 8px);font-size:13px;letter-spacing:.14em;background:var(--ink);color:var(--paper);}
   .kspacer{min-width:0;pointer-events:none;}
   .key:focus-visible{outline:3px solid var(--present);outline-offset:2px;}
   .key.correct{background:var(--correct);color:#13210c;}
   .key.present{background:var(--present);color:#241c06;}
-  .key.absent {background:var(--absent-key);color:#7c756a;box-shadow:0 2px 0 rgba(0,0,0,.5);}
+  .key.absent {background:var(--absent-key);color:#6b6354;box-shadow:0 2px 0 rgba(0,0,0,.18);}
 
   /* ---- footer ---- */
   footer{
@@ -208,38 +211,38 @@
     color:var(--muted);font-size:12px;
   }
   .tally{font-family:var(--mono);letter-spacing:.04em;}
-  .tally b{color:var(--paper);}
+  .tally b{color:var(--ink);}
   .actions{display:flex;gap:8px;}
   button.txt{
     font-family:var(--serif);font-style:italic;font-weight:600;font-size:14px;
-    color:var(--ink);background:var(--paper);
+    color:var(--paper);background:var(--ink);
     border:none;border-radius:999px;padding:9px 16px;cursor:pointer;
-    box-shadow:0 2px 0 rgba(0,0,0,.4);
+    box-shadow:0 2px 0 rgba(0,0,0,.18);
     transition:transform .05s ease, box-shadow .05s ease, background .15s;
   }
   button.txt:active{transform:translateY(2px);box-shadow:0 0 0;}
   button.txt.ghost{background:transparent;color:var(--muted);box-shadow:none;border:1px solid var(--line);}
-  button.txt.ghost:hover{color:var(--paper);}
-  button.txt.danger{color:var(--present);border-color:var(--present);}
+  button.txt.ghost:hover{color:var(--ink);}
+  button.txt.danger{background:var(--present);color:var(--ink);}
   button.txt:focus-visible{outline:3px solid var(--present);outline-offset:2px;}
 
   /* ---- help sheet ---- */
   #help{
     position:fixed;inset:0;z-index:5;
-    background:rgba(15,14,12,.72);
+    background:rgba(39,34,25,.5);
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   #help.open{display:flex;}
   .sheet{
     background:var(--ink2);border:1px solid var(--line);border-radius:12px;
     max-width:380px;width:100%;padding:22px 22px 18px;
-    box-shadow:0 24px 60px rgba(0,0,0,.5);
+    box-shadow:0 24px 60px rgba(0,0,0,.2);
   }
   .sheet h2{font-family:var(--serif);font-weight:900;letter-spacing:.04em;margin:0 0 4px;font-size:22px;}
   .sheet p{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 14px;}
   .ex{display:flex;gap:5px;margin:8px 0;}
   .ex .tile{--tile:34px;width:34px;height:34px;font-size:16px;box-shadow:none;}
-  .ex-label{font-size:13px;color:var(--paper);margin:10px 0 2px;font-weight:700;}
+  .ex-label{font-size:13px;color:var(--ink);margin:10px 0 2px;font-weight:700;}
   .ex-note{font-size:12px;color:var(--muted);margin:0 0 6px;}
   .sheet .close{margin-top:8px;width:100%;}
 
@@ -271,8 +274,7 @@
     <span class="tally" id="tally">won <b>0</b> / <b>0</b> this session</span>
     <div class="actions">
       <button class="txt ghost" id="helpBtn" aria-haspopup="dialog">how to play</button>
-      <button class="txt ghost" id="giveBtn" hidden>give up</button>
-      <button class="txt" id="newBtn">new word</button>
+      <button class="txt" id="giveBtn">give up</button>
     </div>
   </footer>
 
@@ -315,7 +317,7 @@ const ROWS = 6, COLS = 5;
 const KEYS = [
   ['q','w','e','r','t','y','u','i','o','p'],
   [{sp:0.5},'a','s','d','f','g','h','j','k','l',{sp:0.5}],
-  [{sp:0.5},'z','x','c','v','b','n','m',{sp:1},{key:'back',w:1.5}],
+  [{sp:1},'z','x','c','v','b','n','m',{key:'back',w:1},{sp:1}],
   [{key:'enter',w:1}]
 ];
 
@@ -405,7 +407,7 @@ function updateKey(letter,status){
 /* ---------- input ---------- */
 function handleKey(k){
   if(over || locked) return;
-  if(givePending) resetGive();
+  if(givePending) updateAction();
   if(k==='enter') return submit();
   if(k==='back'){
     if(guess.length>0){
@@ -458,7 +460,7 @@ function submit(){
 function finishRow(r, g, result){
   guess='';
   if(g===answer){
-    over=true; played++; won++; updateTally(); showGive(false);
+    over=true; played++; won++; updateTally(); updateAction();
     if(!reduceMotion){
       result.forEach((_,i)=> setTimeout(()=>tileAt(r,i).classList.add('win'), i*90));
     }
@@ -468,7 +470,7 @@ function finishRow(r, g, result){
   }
   row++;
   if(row>=ROWS){
-    over=true; played++; updateTally(); showGive(false);
+    over=true; played++; updateTally(); updateAction();
     flash(`The word was <span class="answer">${answer}</span>`, 0, true);
   }
   locked=false;
@@ -525,7 +527,7 @@ function newGame(){
   buildBoard();
   kbEl.querySelectorAll('.key').forEach(b=>b.classList.remove('correct','present','absent'));
   msgEl.classList.remove('show'); msgEl.textContent='';
-  showGive(true);
+  updateAction();
 }
 
 /* ---------- events ---------- */
@@ -535,38 +537,34 @@ document.addEventListener('keydown',(e)=>{
   else if(e.key==='Backspace') handleKey('back');
   else { const k=e.key.toLowerCase(); if(/^[a-z]$/.test(k)) handleKey(k); }
 });
-document.getElementById('newBtn').addEventListener('click', newGame);
-
 const help=document.getElementById('help');
 document.getElementById('helpBtn').addEventListener('click',()=>help.classList.add('open'));
 document.getElementById('closeHelp').addEventListener('click',()=>help.classList.remove('open'));
 help.addEventListener('click',(e)=>{ if(e.target===help) help.classList.remove('open'); });
 
-/* ---------- give up ---------- */
-const giveBtn=document.getElementById('giveBtn');
+/* ---------- action button (give up ↔ new word) ---------- */
+const actBtn=document.getElementById('giveBtn');
 function resetGive(){
   givePending=false;
   if(giveTimer){ clearTimeout(giveTimer); giveTimer=null; }
-  giveBtn.classList.remove('danger');
-  giveBtn.textContent='give up';
 }
-function showGive(show){
-  giveBtn.hidden=!show;
+function updateAction(){                   // one button, reflects game state
   resetGive();
+  actBtn.classList.remove('danger');
+  actBtn.textContent = over ? 'new word' : 'give up';
 }
-giveBtn.addEventListener('click',()=>{
-  if(over) return;
+actBtn.addEventListener('click',()=>{
+  if(over){ newGame(); return; }          // round finished — start the next word
   if(!givePending){                       // first tap — ask to confirm
     givePending=true;
-    giveBtn.classList.add('danger');
-    giveBtn.textContent='reveal word?';
-    giveTimer=setTimeout(resetGive, 3000);
+    actBtn.classList.add('danger');
+    actBtn.textContent='reveal word?';
+    giveTimer=setTimeout(updateAction, 3000);
     return;
   }
-  resetGive();                            // second tap — reveal and end
-  over=true; locked=false; played++; updateTally();
-  giveBtn.hidden=true;
+  over=true; locked=false; played++; updateTally();   // second tap — reveal and end
   flash(`The word was <span class="answer">${answer}</span>`, 0, true);
+  updateAction();
 });
 
 /* ---------- start ---------- */
